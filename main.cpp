@@ -16,7 +16,7 @@ int main(int argc, char *argv[])
     SDL_Event e;
     bool quit = false;
     bool drawing = false;
-    int i = 0;
+    int lastX, lastY;
     while (!quit)
     {
         while (SDL_PollEvent(&e) != 0)
@@ -25,7 +25,7 @@ int main(int argc, char *argv[])
                 quit = true;
             else if (e.type == SDL_MOUSEBUTTONDOWN)
             {
-                if (SDL_GetMouseState(NULL, NULL) & SDL_BUTTON(SDL_BUTTON_LEFT))
+                if (SDL_GetMouseState(&lastX, &lastY) & SDL_BUTTON(SDL_BUTTON_LEFT))
                     drawing = true;
             }
             else if (e.type == SDL_MOUSEBUTTONUP)
@@ -39,8 +39,12 @@ int main(int argc, char *argv[])
         {
             int x, y;
             SDL_GetMouseState(&x, &y);
-            cout << x << y << '\n';
-            SDL_RenderDrawPoint(mainRenderer, x, y);
+            if (lastX != x || lastY != y)
+            {
+                SDL_RenderDrawLine(mainRenderer, lastX, lastY, x, y);
+                lastX = x;
+                lastY = y;
+            }
         }
 
         SDL_RenderPresent(mainRenderer);
