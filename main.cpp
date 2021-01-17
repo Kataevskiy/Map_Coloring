@@ -54,6 +54,7 @@ int main(int argc, char *argv[])
                             map.setPixel(j, i, pixel);
                         }
                     saveImageRGBA("test.png", map);
+                    SDL_FreeSurface(tempSurface);
                 }
             }
         }
