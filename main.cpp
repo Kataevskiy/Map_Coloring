@@ -1,10 +1,44 @@
 #include <SDL.h>
 #include <iostream>
 #include "imagesaver.h"
+#include "logic.h"
 
 using namespace std;
 
 const int width = 1600, height = 900;
+
+void renderImage(imageRGBA &image, SDL_Renderer *renderer)
+{
+    int width = image.getWidth();
+    int height = image.getHeight();
+    for (int i = 0; i < height; i++)
+        for (int j = 0; j < width; j++)
+        {
+            pixelRGBA colour = image.getPixel(j, i);
+            SDL_SetRenderDrawColor(renderer, colour.r, colour.g, colour.b, colour.a);
+            SDL_RenderDrawPoint(renderer, j, i);
+        }
+}
+
+imageRGBA saveScreen(SDL_Renderer *renderer)
+{
+    SDL_Surface *tempSurface = SDL_CreateRGBSurface(0, width, height, 32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000);
+    SDL_RenderReadPixels(renderer, NULL, SDL_PIXELFORMAT_RGBA32, tempSurface->pixels, tempSurface->pitch);
+    imageRGBA tempImage(width, height);
+    for (int i = 0; i < height; i++)
+        for (int j = 0; j < width; j++)
+        {
+            pixelRGBA pixel;
+            pixel.r = (Uint8)(((Uint32 *)(tempSurface->pixels))[i * width + j] >> 16);
+            pixel.g = (Uint8)(((Uint32 *)(tempSurface->pixels))[i * width + j] >> 8);
+            pixel.b = (Uint8)(((Uint32 *)(tempSurface->pixels))[i * width + j] >> 0);
+            pixel.a = (Uint8)(((Uint32 *)(tempSurface->pixels))[i * width + j] >> 24);
+
+            tempImage.setPixel(j, i, pixel);
+        }
+    SDL_FreeSurface(tempSurface);
+    return tempImage;
+}
 
 int main(int argc, char *argv[])
 {
@@ -37,24 +71,17 @@ int main(int argc, char *argv[])
             }
             else if (e.type == SDL_KEYDOWN)
             {
-                if (e.key.keysym.sym == SDLK_RETURN)
+                if (e.key.keysym.sym == SDLK_s)
                 {
-                    SDL_Surface *tempSurface = SDL_CreateRGBSurface(0, width, height, 32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000);
-                    SDL_RenderReadPixels(mainRenderer, NULL, SDL_PIXELFORMAT_RGBA32, tempSurface->pixels, tempSurface->pitch);
-                    imageRGBA map(width, height);
-                    for (int i = 0; i < height; i++)
-                        for (int j = 0; j < width; j++)
-                        {
-                            pixelRGBA pixel;
-                            pixel.r = (Uint8)(((Uint32 *)tempSurface->pixels)[i * width + j] >> 16);
-                            pixel.g = (Uint8)(((Uint32 *)tempSurface->pixels)[i * width + j] >> 8);
-                            pixel.b = (Uint8)(((Uint32 *)tempSurface->pixels)[i * width + j] >> 0);
-                            pixel.a = (Uint8)(((Uint32 *)tempSurface->pixels)[i * width + j] >> 24);
-
-                            map.setPixel(j, i, pixel);
-                        }
-                    saveImageRGBA("test.png", map);
-                    SDL_FreeSurface(tempSurface);
+                    imageRGBA image = saveScreen(mainRenderer);
+                    saveImageRGBA("test.png", image);
+                }
+                else if (e.key.keysym.sym == SDLK_RETURN)
+                {
+                    imageRGBA image = saveScreen(mainRenderer);
+                    readImage(image);
+                    paintMap(image);
+                    renderImage(image, mainRenderer);
                 }
             }
         }
