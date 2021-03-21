@@ -79,8 +79,7 @@ int main(int argc, char *argv[])
                 else if (e.key.keysym.sym == SDLK_RETURN)
                 {
                     imageRGBA image = saveScreen(mainRenderer);
-                    readImage(image);
-                    paintMap(image);
+                    solveMap(image);
                     renderImage(image, mainRenderer);
                 }
             }
@@ -93,6 +92,9 @@ int main(int argc, char *argv[])
             if (lastX != x || lastY != y)
             {
                 SDL_RenderDrawLine(mainRenderer, lastX, lastY, x, y);
+                SDL_RenderDrawLine(mainRenderer, lastX, lastY + 1, x, y + 1);
+                SDL_RenderDrawLine(mainRenderer, lastX + 1, lastY, x + 1, y);
+                SDL_RenderDrawLine(mainRenderer, lastX + 1, lastY + 1, x + 1, y + 1);
                 lastX = x;
                 lastY = y;
             }
