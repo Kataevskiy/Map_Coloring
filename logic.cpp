@@ -1,4 +1,6 @@
-#include <vector>
+#include <set>
+#include <queue>
+#include <algorithm>
 #include "imagesaver.h"
 #include "logic.h"
 
@@ -13,20 +15,6 @@ enum COLOUR
     BLUE = 8
 };
 
-struct coordinate
-{
-    int x;
-    int y;
-};
-
-struct region
-{
-    vector<coordinate> coordinates;
-    vector<region *> links;
-    int possibleColour = 15;
-    COLOUR definitiveColour = NONE;
-};
-
 bool pixelIsWhite(const pixelRGBA &pixel)
 {
     if (pixel.r > 127 && pixel.g > 127 && pixel.b > 127)
@@ -35,158 +23,237 @@ bool pixelIsWhite(const pixelRGBA &pixel)
         return false;
 }
 
-const int moves[4][2] = {{0, 1}, {1, 0}, {0, -1}, {-1, 0}};
+const int fourMoves[4][2] = {{0, 1}, {1, 0}, {0, -1}, {-1, 0}};
+const int eightMoves[8][2] = {{1, 0}, {1, 1}, {0, 1}, {-1, 1}, {-1, 0}, {-1, -1}, {0, -1}, {1, -1}};
 
-void regionSearch(region &root, const imageRGBA &image, bool *checker, int *regionChecher, int counter)
+void recursiveSearch(int rootX, int rootY, int number, const imageRGBA &image, int **regions, bool **checker)
 {
-    unsigned int position = 0;
-    int width = image.getWidth();
-    int height = image.getHeight();
-    while (position < root.coordinates.size())
+    queue<pair<int, int>> cellsQueue;
+    cellsQueue.emplace(rootY, rootX);
+    while (cellsQueue.size() > 0)
     {
+        pair<int, int> coordinate = cellsQueue.front();
         for (int i = 0; i < 4; i++)
         {
-            int tempX = root.coordinates[position].x + moves[i][0];
-            int tempY = root.coordinates[position].y + moves[i][1];
-            if (tempX > -1 && tempX < width && tempY > -1 && tempY < height)
-                if (!checker[tempY * width + tempX])
+            int positionX = coordinate.second + fourMoves[i][0];
+            int positionY = coordinate.first + fourMoves[i][1];
+            if (positionX > -1 && positionX < image.getWidth() && positionY > -1 && positionY < image.getHeight())
+            {
+                if (!checker[positionY][positionX])
                 {
-                    checker[tempY * width + tempX] = true;
-                    if (pixelIsWhite(image.getPixel(tempX, tempY)))
+                    if (pixelIsWhite(image.getPixel(positionX, positionY)))
                     {
-                        regionChecher[tempY * width + tempX] = counter;
-                        root.coordinates.push_back(coordinate{tempX, tempY});
+                        regions[positionY][positionX] = number;
+                        checker[positionY][positionX] = true;
+                        cellsQueue.emplace(positionY, positionX);
                     }
                 }
+            }
         }
-        position++;
+        cellsQueue.pop();
     }
 }
 
-vector<region> regions;
-int *regionChecker;
-
-void readImage(const imageRGBA &image)
+int readImage(const imageRGBA &image, int **regions, bool **checker)
 {
     int width = image.getWidth();
     int height = image.getHeight();
-    int regionCounter = 1;
-    bool *checker = new bool[width * height];
-    regionChecker = new int[width * height];
+    int regionsCounter = 1;
+
     for (int i = 0; i < height; i++)
         for (int j = 0; j < width; j++)
-            if (!checker[i * width + j])
+            if (!checker[i][j])
             {
-                checker[i * width + j] = true;
                 if (pixelIsWhite(image.getPixel(j, i)))
                 {
-                    regionChecker[i * width + j] = regionCounter;
-                    coordinate newCoordinate{j, i};
-                    region newRegion;
-                    newRegion.coordinates.push_back(newCoordinate);
-                    regionSearch(newRegion, image, checker, regionChecker, regionCounter);
-                    regions.push_back(newRegion);
-                    regionCounter++;
+                    regions[i][j] = regionsCounter;
+                    checker[i][j] = true;
+                    recursiveSearch(j, i, regionsCounter, image, regions, checker);
+                    regionsCounter++;
                 }
             }
-    delete[] checker;
-}
 
-void makeLink(vector<region> &regions, int first, int second, bool *checker)
-{
-    if (!checker[first * regions.size() + second])
-    {
-        checker[first * regions.size() + second] = true;
-        checker[second * regions.size() + first] = true;
-        regions[first].links.push_back(&regions[second]);
-        regions[second].links.push_back(&regions[first]);
-    }
-}
-
-void makeLinks(const imageRGBA &image, vector<region> &regions, int *regionChecker)
-{
-    int width = image.getWidth();
-    int height = image.getHeight();
-    bool *checker = new bool[regions.size() * regions.size()];
-    for (int i = 0; i < height; i++)
-    {
-        int lastLink = 0;
-        for (int j = 0; j < width; j++)
-        {
-            int newLink = regionChecker[i * width + j];
-            if (newLink != 0 && newLink != lastLink)
+    //TODO: maybe replace with better algorithm?
+    //replace border element with any most common adjacent region element.
+    for (int i = 1; i < height - 1; i++)
+        for (int j = 1; j < width - 1; j++)
+            if (!checker[i][j])
             {
-                // 0 stands for black wall so regions begin with 1
-                if (lastLink != 0)
-                    makeLink(regions, lastLink - 1, newLink - 1, checker);
-                lastLink = newLink;
+                int cells[8];
+                for (int k = 0; k < 8; k++)
+                    cells[k] = regions[i + eightMoves[k][0]][j + eightMoves[k][1]];
+                sort(begin(cells), end(cells));
+                int maxCounter = -1;
+                int maxValue = 0;
+                int lastValue = -1;
+                int counter = 0;
+                for (int k = 0; k < 8; k++)
+                {
+                    int newValue = cells[k];
+                    if (newValue != 0)
+                    {
+                        if (newValue == lastValue)
+                        {
+                            counter++;
+                            if ((counter > maxCounter) || (counter == maxCounter && newValue > maxValue))
+                            {
+                                maxCounter = counter;
+                                maxValue = newValue;
+                            }
+                        }
+                        else
+                        {
+                            lastValue = newValue;
+                            counter = 0;
+                        }
+                    }
+                }
+                regions[i][j] = maxValue;
             }
+
+    return regionsCounter;
+}
+
+//TODO: encapsulate it better
+void recursiveColourPicking(int regionsNumber, int **regions, set<int> *links, int *possibleColours, COLOUR *definitiveColour)
+{
+    queue<int> regionsQueue;
+    regionsQueue.push(1);
+    while (regionsQueue.size() > 0)
+    {
+        int currentRegion = regionsQueue.front();
+        COLOUR selectedColour;
+        if (possibleColours[currentRegion] & WHITE)
+            selectedColour = WHITE;
+        else if (possibleColours[currentRegion] & RED)
+            selectedColour = RED;
+        else if (possibleColours[currentRegion] & GREEN)
+            selectedColour = GREEN;
+        else if (possibleColours[currentRegion] & BLUE)
+            selectedColour = BLUE;
+        definitiveColour[currentRegion] = selectedColour;
+        for (int link : links[currentRegion])
+        {
+            if (possibleColours[link] & selectedColour)
+                possibleColours[link] -= selectedColour;
+            links[link].erase(currentRegion);
+            regionsQueue.push(link);
         }
+        regionsQueue.pop();
     }
-    // for (int j = 0; j < width; j++)
-    // {
-    //     int lastLink = 0;
-    //     for (int i = 0; i < height; i++)
-    //     {
-    //         int newLink = regionChecker[i * width + j];
-    //         if (newLink != 0 && newLink != lastLink)
-    //         {
-    //             if (lastLink != 0)
-    //                 makeLink(regions, lastLink - 1, newLink - 1, checker);
-    //             lastLink = newLink;
-    //         }
-    //     }
-    // }
-    delete[] regionChecker;
-    delete[] checker;
 }
 
 void solveMap(imageRGBA &image)
 {
-    readImage(image);
-    makeLinks(image, regions, regionChecker);
-    for (region &currentRegion : regions)
-    {
-        COLOUR usedColour;
-        if (currentRegion.possibleColour & BLUE)
-            usedColour = BLUE;
-        else if (currentRegion.possibleColour & GREEN)
-            usedColour = GREEN;
-        else if (currentRegion.possibleColour & RED)
-            usedColour = RED;
-        else
-            usedColour = WHITE;
-        currentRegion.definitiveColour = usedColour;
-        for (region *linkRegion : currentRegion.links)
-            if (linkRegion->possibleColour > usedColour)
-                linkRegion->possibleColour -= usedColour;
-    }
-    for (region &currentRegion : regions)
-    {
-        int R = 0, G = 0, B = 0;
-        switch (currentRegion.definitiveColour)
+    int width = image.getWidth();
+    int height = image.getHeight();
+
+    int **regions = new int *[height];
+    for (int i = 0; i < height; i++)
+        regions[i] = new int[width];
+    bool **checker = new bool *[height];
+    for (int i = 0; i < height; i++)
+        checker[i] = new bool[width];
+    for (int i = 0; i < height; i++)
+        for (int j = 0; j < width; j++)
         {
-        case RED:
-            R = 255;
-            break;
-        case GREEN:
-            G = 255;
-            break;
-        case BLUE:
-            B = 255;
-            break;
-        case WHITE:
-            R = 255;
-            G = 255;
-            B = 255;
-            break;
-        default:
-            break;
+            regions[i][j] = 0;
+            checker[i][j] = false;
         }
-        pixelRGBA colour{R, G, B, 255};
-        for (coordinate currentCoordinate : currentRegion.coordinates)
+
+    int regionsNumber = readImage(image, regions, checker);
+    set<int> *links = new set<int>[regionsNumber + 1];
+
+    //TODO: combine these two searches
+    for (int i = 0; i < height; i++)
+    {
+        int lastRegion = 1;
+        for (int j = 0; j < width; j++)
         {
-            image.setPixel(currentCoordinate.x, currentCoordinate.y, colour);
+            int newRegion = regions[i][j];
+            if (lastRegion != newRegion)
+            {
+                if (links[newRegion].find(lastRegion) == links[newRegion].end())
+                {
+                    links[newRegion].insert(lastRegion);
+                    links[lastRegion].insert(newRegion);
+                }
+                lastRegion = newRegion;
+            }
         }
     }
+    for (int j = 0; j < width; j++)
+    {
+        int lastRegion = 1;
+        for (int i = 0; i < height; i++)
+        {
+            int newRegion = regions[i][j];
+            if (lastRegion != newRegion)
+            {
+                if (links[newRegion].find(lastRegion) == links[newRegion].end())
+                {
+                    links[newRegion].insert(lastRegion);
+                    links[lastRegion].insert(newRegion);
+                }
+                lastRegion = newRegion;
+            }
+        }
+    }
+
+    // 15 = RED + GREEN + BLUE + WHITE
+    int *possibleColours = new int[regionsNumber + 1];
+    for (int i = 1; i < regionsNumber + 1; i++)
+        possibleColours[i] = 15;
+    COLOUR *definitiveColour = new COLOUR[regionsNumber + 1];
+    for (int i = 1; i < regionsNumber + 1; i++)
+        definitiveColour[i] = NONE;
+
+    //region 0 is for borders
+    for (int link : links[0])
+    {
+        links[link].erase(0);
+        links[0].erase(link);
+    }
+    recursiveColourPicking(0, regions, links, possibleColours, definitiveColour);
+
+    //colouring
+    for (int i = 0; i < height; i++)
+        for (int j = 0; j < width; j++)
+        {
+            // if (checker[i][j])
+            // {
+            pixelRGBA colour;
+            switch (definitiveColour[regions[i][j]])
+            {
+            case RED:
+                colour.r = 255;
+                break;
+            case GREEN:
+                colour.g = 255;
+                break;
+            case BLUE:
+                colour.b = 255;
+                break;
+            case WHITE:
+                colour.r = 255;
+                colour.g = 255;
+                colour.b = 255;
+                break;
+            default:
+                break;
+            }
+            image.setPixel(j, i, colour);
+            // }
+        }
+
+    //deleting stuff
+    for (int i = 0; i < height; i++)
+        delete[] regions[i];
+    delete[] regions;
+    for (int i = 0; i < height; i++)
+        delete[] checker[i];
+    delete[] checker;
+    delete[] possibleColours;
+    delete[] definitiveColour;
+    delete[] links;
 }
