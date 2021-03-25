@@ -2,7 +2,7 @@ OBJS = main.cpp logic.cpp
 
 RESULT = Map_Colouring
 
-FLAGS_DEBUG = -g -Wall -Wl,--stack,2000000000
+FLAGS_DEBUG = -g -Wall #-Wl,--stack,2000000000
 
 FLAGS_RELEASE = -O3 -Wl,-subsystem,windows
 
