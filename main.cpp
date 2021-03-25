@@ -1,12 +1,34 @@
 #include <SDL.h>
+#include <string>
 #include <iostream>
 #include "imagesaver.h"
 #include "logic.h"
 
 using namespace std;
 
-const int width = 1600, height = 900;
+const int windowWidth = 1600, windowHeight = 900;
 
+imageRGBA saveScreen(SDL_Renderer *renderer)
+{
+    SDL_Surface *tempSurface = SDL_CreateRGBSurface(0, windowWidth, windowHeight, 32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000);
+    SDL_RenderReadPixels(renderer, NULL, SDL_PIXELFORMAT_RGBA32, tempSurface->pixels, tempSurface->pitch);
+    imageRGBA tempImage(windowWidth, windowHeight);
+    for (int i = 0; i < windowHeight; i++)
+        for (int j = 0; j < windowWidth; j++)
+        {
+            pixelRGBA pixel;
+            pixel.r = (Uint8)(((Uint32 *)(tempSurface->pixels))[i * windowWidth + j] >> 16);
+            pixel.g = (Uint8)(((Uint32 *)(tempSurface->pixels))[i * windowWidth + j] >> 8);
+            pixel.b = (Uint8)(((Uint32 *)(tempSurface->pixels))[i * windowWidth + j] >> 0);
+            pixel.a = (Uint8)(((Uint32 *)(tempSurface->pixels))[i * windowWidth + j] >> 24);
+
+            tempImage.setPixel(j, i, pixel);
+        }
+    SDL_FreeSurface(tempSurface);
+    return tempImage;
+}
+
+//not particularly efficient.
 void renderImage(imageRGBA &image, SDL_Renderer *renderer)
 {
     int width = image.getWidth();
@@ -18,36 +40,22 @@ void renderImage(imageRGBA &image, SDL_Renderer *renderer)
             SDL_SetRenderDrawColor(renderer, colour.r, colour.g, colour.b, colour.a);
             SDL_RenderDrawPoint(renderer, j, i);
         }
-}
-
-imageRGBA saveScreen(SDL_Renderer *renderer)
-{
-    SDL_Surface *tempSurface = SDL_CreateRGBSurface(0, width, height, 32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000);
-    SDL_RenderReadPixels(renderer, NULL, SDL_PIXELFORMAT_RGBA32, tempSurface->pixels, tempSurface->pitch);
-    imageRGBA tempImage(width, height);
-    for (int i = 0; i < height; i++)
-        for (int j = 0; j < width; j++)
-        {
-            pixelRGBA pixel;
-            pixel.r = (Uint8)(((Uint32 *)(tempSurface->pixels))[i * width + j] >> 16);
-            pixel.g = (Uint8)(((Uint32 *)(tempSurface->pixels))[i * width + j] >> 8);
-            pixel.b = (Uint8)(((Uint32 *)(tempSurface->pixels))[i * width + j] >> 0);
-            pixel.a = (Uint8)(((Uint32 *)(tempSurface->pixels))[i * width + j] >> 24);
-
-            tempImage.setPixel(j, i, pixel);
-        }
-    SDL_FreeSurface(tempSurface);
-    return tempImage;
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
 }
 
 int main(int argc, char *argv[])
 {
     SDL_Init(SDL_INIT_EVERYTHING);
-    SDL_Window *mainWindow = SDL_CreateWindow("Map_Coloring", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, SDL_WINDOW_SHOWN);
+    SDL_Window *mainWindow = SDL_CreateWindow("Map_Coloring", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, windowWidth, windowHeight, SDL_WINDOW_SHOWN);
     SDL_Renderer *mainRenderer = SDL_CreateRenderer(mainWindow, -1, SDL_RENDERER_ACCELERATED);
     SDL_SetRenderDrawColor(mainRenderer, 255, 255, 255, 255);
     SDL_RenderClear(mainRenderer);
     SDL_SetRenderDrawColor(mainRenderer, 0, 0, 0, 255);
+
+    string path;
+    cin >> path;
+    imageRGBA startingImage = loadImageRGBA(path.c_str());
+    renderImage(startingImage, mainRenderer);
 
     SDL_Event e;
     bool quit = false;
