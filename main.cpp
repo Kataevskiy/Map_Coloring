@@ -16,7 +16,7 @@ imageRGBA saveScreen(SDL_Renderer *renderer)
     for (int i = 0; i < windowHeight; i++)
         for (int j = 0; j < windowWidth; j++)
         {
-            pixelRGBA pixel;
+            colourRGBA pixel;
             pixel.r = (Uint8)(((Uint32 *)(tempSurface->pixels))[i * windowWidth + j] >> 16);
             pixel.g = (Uint8)(((Uint32 *)(tempSurface->pixels))[i * windowWidth + j] >> 8);
             pixel.b = (Uint8)(((Uint32 *)(tempSurface->pixels))[i * windowWidth + j] >> 0);
@@ -36,7 +36,7 @@ void renderImage(imageRGBA &image, SDL_Renderer *renderer)
     for (int i = 0; i < height; i++)
         for (int j = 0; j < width; j++)
         {
-            pixelRGBA colour = image.getPixel(j, i);
+            colourRGBA colour = image.getPixel(j, i);
             SDL_SetRenderDrawColor(renderer, colour.r, colour.g, colour.b, colour.a);
             SDL_RenderDrawPoint(renderer, j, i);
         }
@@ -53,9 +53,13 @@ int main(int argc, char *argv[])
     SDL_SetRenderDrawColor(mainRenderer, 0, 0, 0, 255);
 
     string path;
+    cout << "path of starting image or \"none\"" << '\n';
     cin >> path;
-    imageRGBA startingImage = loadImageRGBA(path.c_str());
-    renderImage(startingImage, mainRenderer);
+    if (path != "none")
+    {
+        imageRGBA startingImage = loadImageRGBA(path.c_str());
+        renderImage(startingImage, mainRenderer);
+    }
 
     SDL_Event e;
     bool quit = false;

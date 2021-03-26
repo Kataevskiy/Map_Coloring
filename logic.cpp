@@ -15,9 +15,9 @@ enum COLOUR
     BLUE = 8
 };
 
-bool pixelIsWhite(const pixelRGBA &pixel)
+bool pixelIsWhite(const colourRGBA &pixel)
 {
-    if (pixel.r > 127 && pixel.g > 127 && pixel.b > 127)
+    if (pixel.r > 127 || pixel.g > 127 || pixel.b > 127)
         return true;
     else
         return false;
@@ -74,7 +74,7 @@ int readImage(const imageRGBA &image, int **regions, bool **checker)
             }
 
     //TODO: maybe replace with better algorithm?
-    //replace border element with any most common adjacent region element.
+    //replace border element with most common adjacent region element.
     for (int i = 1; i < height - 1; i++)
         for (int j = 1; j < width - 1; j++)
             if (!checker[i][j])
@@ -95,7 +95,7 @@ int readImage(const imageRGBA &image, int **regions, bool **checker)
                         if (newValue == lastValue)
                         {
                             counter++;
-                            if ((counter > maxCounter) || (counter == maxCounter && newValue > maxValue))
+                            if (counter >= maxCounter)
                             {
                                 maxCounter = counter;
                                 maxValue = newValue;
@@ -115,32 +115,35 @@ int readImage(const imageRGBA &image, int **regions, bool **checker)
 }
 
 //TODO: encapsulate it better
-void recursiveColourPicking(int regionsNumber, int **regions, set<int> *links, int *possibleColours, COLOUR *definitiveColour)
+void recursiveColourPicking(int **regions, int regionsNumber, set<int> *links, COLOUR *definitiveColour)
 {
-    queue<int> regionsQueue;
-    regionsQueue.push(1);
-    while (regionsQueue.size() > 0)
+    pair<int, int> *regionsByDegrees = new pair<int, int>[regionsNumber + 1];
+    for (int i = 0; i < regionsNumber + 1; i++)
+        regionsByDegrees[i] = make_pair(i, links[i].size());
+    sort(regionsByDegrees, regionsByDegrees + (regionsNumber + 1), [](pair<int, int> &first, pair<int, int> &second) { return first.second > second.second; });
+    // 1 = white, 2 = red, 4 = green, 8 = blue.
+    for (int currentColour = 1; currentColour < 9; currentColour *= 2)
     {
-        int currentRegion = regionsQueue.front();
-        COLOUR selectedColour;
-        if (possibleColours[currentRegion] & WHITE)
-            selectedColour = WHITE;
-        else if (possibleColours[currentRegion] & RED)
-            selectedColour = RED;
-        else if (possibleColours[currentRegion] & GREEN)
-            selectedColour = GREEN;
-        else if (possibleColours[currentRegion] & BLUE)
-            selectedColour = BLUE;
-        definitiveColour[currentRegion] = selectedColour;
-        for (int link : links[currentRegion])
+        for (int currentPair = 0; currentPair < regionsNumber + 1; currentPair++)
         {
-            if (possibleColours[link] & selectedColour)
-                possibleColours[link] -= selectedColour;
-            links[link].erase(currentRegion);
-            regionsQueue.push(link);
+            int currentRegion = regionsByDegrees[currentPair].first;
+            if (definitiveColour[currentRegion] == NONE)
+            {
+                bool appropriate = true;
+                for (int link : links[currentRegion])
+                {
+                    if (definitiveColour[link] == currentColour)
+                    {
+                        appropriate = false;
+                        break;
+                    }
+                }
+                if (appropriate)
+                    definitiveColour[currentRegion] = (COLOUR)currentColour;
+            }
         }
-        regionsQueue.pop();
     }
+    delete[] regionsByDegrees;
 }
 
 void solveMap(imageRGBA &image)
@@ -167,7 +170,7 @@ void solveMap(imageRGBA &image)
     //TODO: combine these two searches
     for (int i = 0; i < height; i++)
     {
-        int lastRegion = 1;
+        int lastRegion = regions[i][0];
         for (int j = 0; j < width; j++)
         {
             int newRegion = regions[i][j];
@@ -184,7 +187,7 @@ void solveMap(imageRGBA &image)
     }
     for (int j = 0; j < width; j++)
     {
-        int lastRegion = 1;
+        int lastRegion = regions[0][j];
         for (int i = 0; i < height; i++)
         {
             int newRegion = regions[i][j];
@@ -200,50 +203,44 @@ void solveMap(imageRGBA &image)
         }
     }
 
-    // 15 = RED + GREEN + BLUE + WHITE
-    int *possibleColours = new int[regionsNumber + 1];
-    for (int i = 1; i < regionsNumber + 1; i++)
-        possibleColours[i] = 15;
     COLOUR *definitiveColour = new COLOUR[regionsNumber + 1];
     for (int i = 1; i < regionsNumber + 1; i++)
         definitiveColour[i] = NONE;
 
     //region 0 is for borders
     for (int link : links[0])
-    {
         links[link].erase(0);
-        links[0].erase(link);
-    }
-    recursiveColourPicking(0, regions, links, possibleColours, definitiveColour);
+    links[0].clear();
+    recursiveColourPicking(regions, regionsNumber, links, definitiveColour);
 
     //colouring
     for (int i = 0; i < height; i++)
         for (int j = 0; j < width; j++)
         {
-            // if (checker[i][j])
-            // {
-            pixelRGBA colour;
-            switch (definitiveColour[regions[i][j]])
+            if (true) //checker[i][j])
             {
-            case RED:
-                colour.r = 255;
-                break;
-            case GREEN:
-                colour.g = 255;
-                break;
-            case BLUE:
-                colour.b = 255;
-                break;
-            case WHITE:
-                colour.r = 255;
-                colour.g = 255;
-                colour.b = 255;
-                break;
-            default:
-                break;
+                colourRGBA colour;
+                switch (definitiveColour[regions[i][j]])
+                {
+                case RED:
+                    colour.r = 255;
+                    break;
+                case GREEN:
+                    colour.g = 255;
+                    break;
+                case BLUE:
+                    colour.b = 255;
+                    break;
+                case WHITE:
+                    colour.r = 255;
+                    colour.g = 255;
+                    colour.b = 255;
+                    break;
+                default:
+                    break;
+                }
+                image.setPixel(j, i, colour);
             }
-            image.setPixel(j, i, colour);
-            // }
         }
 
     //deleting stuff
@@ -253,7 +250,6 @@ void solveMap(imageRGBA &image)
     for (int i = 0; i < height; i++)
         delete[] checker[i];
     delete[] checker;
-    delete[] possibleColours;
     delete[] definitiveColour;
     delete[] links;
 }

@@ -27,23 +27,31 @@ LIBRARIES32 = -LC:/msys64/mingw32/lib
 #begin with l
 LINKER_FLAGS = -lmingw32 -lSDL2main -lSDL2 -limagesaver
 
-debug :
-	mkdir debug
+32 :
+	mkdir 32
+	mkdir 32\\debug
+	mkdir 32\\release
 
-release :
-	mkdir release
+64 :
+	mkdir 64
+	mkdir 64\\debug
+	mkdir 64\\release
 
-debug_64 : debug
-	$(COMPILER64) $(OBJS) $(FLAGS_DEBUG) $(INCLUDES64) $(LIBRARIES64) $(LINKER_FLAGS) -o debug/$(RESULT)_64
+.PHONY : directories
 
-debug_32 : debug
-	$(COMPILER32) $(OBJS) $(FLAGS_DEBUG) $(INCLUDES32) $(LIBRARIES32) $(LINKER_FLAGS) -o debug/$(RESULT)_32
+directories : 32 64
 
-release_64 : release
-	$(COMPILER64) $(OBJS) $(FLAGS_RELEASE) $(INCLUDES64) $(LIBRARIES64) $(LINKER_FLAGS) -o release/$(RESULT)_64
+debug_64 : directories
+	$(COMPILER64) $(OBJS) $(FLAGS_DEBUG) $(INCLUDES64) $(LIBRARIES64) $(LINKER_FLAGS) -o 64/debug/$(RESULT)_64
 
-release_32 : release
-	$(COMPILER32) $(OBJS) $(FLAGS_RELEASE) $(INCLUDES32) $(LIBRARIES32) $(LINKER_FLAGS) -o release/$(RESULT)_32
+debug_32 : directories
+	$(COMPILER32) $(OBJS) $(FLAGS_DEBUG) $(INCLUDES32) $(LIBRARIES32) $(LINKER_FLAGS) -o 32/debug/$(RESULT)_32
 
-all : release
-	$(COMPILER64) $(OBJS) $(FLAGS_DEBUG) $(INCLUDES) $(LIBRARIES) $(LINKER_FLAGS) -o debug/$(RESULT)_64
+release_64 : directories
+	$(COMPILER64) $(OBJS) $(FLAGS_RELEASE) $(INCLUDES64) $(LIBRARIES64) $(LINKER_FLAGS) -o 64/release/$(RESULT)_64
+
+release_32 : directories
+	$(COMPILER32) $(OBJS) $(FLAGS_RELEASE) $(INCLUDES32) $(LIBRARIES32) $(LINKER_FLAGS) -o 32/release/$(RESULT)_32
+
+all : directories
+	$(COMPILER64) $(OBJS) $(FLAGS_DEBUG) $(INCLUDES) $(LIBRARIES) $(LINKER_FLAGS) -o 64/debug/$(RESULT)_64
