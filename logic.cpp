@@ -217,7 +217,7 @@ void solveMap(imageRGBA &image)
     for (int i = 0; i < height; i++)
         for (int j = 0; j < width; j++)
         {
-            if (true) //checker[i][j])
+            if (checker[i][j])
             {
                 colourRGBA colour;
                 switch (definitiveColour[regions[i][j]])

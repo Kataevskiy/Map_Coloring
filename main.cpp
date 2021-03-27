@@ -54,12 +54,16 @@ int main(int argc, char *argv[])
 
     string path;
     cout << "path of starting image or \"none\"" << '\n';
-    cin >> path;
-    if (path != "none")
+    imageRGBA startingImage;
+    while (startingImage.getWidth() == 0)
     {
-        imageRGBA startingImage = loadImageRGBA(path.c_str());
-        renderImage(startingImage, mainRenderer);
+        cin >> path;
+        if (path == "none")
+            break;
+        startingImage = loadImageRGBA(path.c_str());
     }
+    if (path != "none")
+        renderImage(startingImage, mainRenderer);
 
     SDL_Event e;
     bool quit = false;
